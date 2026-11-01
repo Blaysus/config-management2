@@ -7,7 +7,9 @@ from .config import PACKAGE_PATTERN, VERSION_PATTERN
 
 
 FIELD_NAME_LENGTH = 1
-TRACKED_FIELDS = {"P", "V", "D"}
+TRACKED_FIELDS = {"P", "V", "D", "p", "k"}
+DEFAULT_PROVIDER_PRIORITY = 0
+MAX_PRIORITY_DIGITS = 10
 
 
 class RepositoryError(ValueError):
@@ -22,10 +24,12 @@ class Package:
     version: str
     dependencies: tuple[str, ...]
     conflicts: tuple[str, ...]
+    provides: tuple[str, ...] = ()
+    provider_priority: int = DEFAULT_PROVIDER_PRIORITY
 
 
 def _parse_fields(record: str) -> dict[str, str]:
-    """Прочитать P, V и D, сохраняя двоеточия внутри значений."""
+    """Прочитать P, V, D, p и k, сохраняя двоеточия внутри значений."""
     fields = {}
     for line in record.splitlines():
         key, separator, value = line.partition(":")
@@ -36,6 +40,13 @@ def _parse_fields(record: str) -> dict[str, str]:
                 raise RepositoryError(f"APKINDEX: повторное поле {key}")
             fields[key] = value.strip()
     return fields
+
+
+def _provider_priority(value: str) -> int:
+    """Проверить неотрицательный целый приоритет поставщика из поля k."""
+    if len(value) > MAX_PRIORITY_DIGITS or not re.fullmatch(r"[0-9]+", value):
+        raise RepositoryError("APKINDEX: некорректный приоритет k")
+    return int(value)
 
 
 def _make_package(fields: dict[str, str]) -> Package:
@@ -51,7 +62,9 @@ def _make_package(fields: dict[str, str]) -> Package:
         raise RepositoryError("APKINDEX: пустое имя конфликта в поле D")
     dependencies = tuple(term for term in terms if not term.startswith("!"))
     conflicts = tuple(term for term in terms if term.startswith("!"))
-    return Package(name, version, dependencies, conflicts)
+    provides = tuple(fields.get("p", "").split())
+    priority = _provider_priority(fields.get("k", "0"))
+    return Package(name, version, dependencies, conflicts, provides, priority)
 
 
 def parse_index(text: str) -> dict[tuple[str, str], Package]:

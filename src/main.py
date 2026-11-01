@@ -1,4 +1,4 @@
-"""CLI этапов 1 и 2: проверка настроек и прямые зависимости APK."""
+"""CLI варианта 22: настройки, прямые зависимости и рекурсивный DFS."""
 
 import argparse
 from dataclasses import fields
@@ -6,7 +6,9 @@ from pathlib import Path
 import sys
 
 from .apk_index import Package, RepositoryError
+from .analysis import analyze_graph
 from .config import Config, ConfigError, load_config
+from .graph import DependencyGraph
 from .repository import get_package
 
 
@@ -15,9 +17,9 @@ ERROR_EXIT_CODE = 2
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Создать опцию выбора TOML и режим демонстрации первого этапа."""
+    """Создать выбор TOML и режимы демонстрации первых двух этапов."""
     parser = argparse.ArgumentParser(
-        description="Вариант 22: прямые зависимости выбранной версии APK."
+        description="Вариант 22: граф зависимостей APK, рекурсивный DFS."
     )
     parser.add_argument(
         "--config",
@@ -26,7 +28,12 @@ def create_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="путь к TOML-файлу (по умолчанию examples/config.toml)",
     )
-    parser.add_argument(
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--direct", action="store_true",
+        help="вывести только прямые зависимости (этап 2)",
+    )
+    modes.add_argument(
         "--show-config",
         action="store_true",
         help="только проверить и вывести настройки (демонстрация этапа 1)",
@@ -59,13 +66,28 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(args.config)
         if args.show_config:
             print_config(config)
+        elif args.direct:
+            package = get_package(config, args.config.resolve().parent)
+            print_dependencies(package)
         else:
-            base_dir = args.config.resolve().parent
-            print_dependencies(get_package(config, base_dir))
+            graph = analyze_graph(config, args.config.resolve().parent)
+            print_graph(graph, config.max_depth)
     except (ConfigError, RepositoryError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return ERROR_EXIT_CODE
     return 0
+
+
+def print_graph(graph: DependencyGraph, max_depth: int) -> None:
+    """Показать списки смежности, границу глубины и найденные циклы."""
+    print(f"Граф зависимостей (глубина {max_depth}):")
+    for node, children in graph.edges.items():
+        ending = "-"
+        if graph.depths[node] >= max_depth:
+            ending = "[предел глубины]"
+        print(f"{node} -> {', '.join(children) if children else ending}")
+    for cycle in graph.cycles:
+        print("Цикл: " + " -> ".join(cycle))
 
 
 if __name__ == "__main__":

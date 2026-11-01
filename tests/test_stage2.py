@@ -56,7 +56,10 @@ def run_main(*arguments) -> tuple[int, str, str]:
     stdout = StringIO()
     stderr = StringIO()
     with redirect_stdout(stdout), redirect_stderr(stderr):
-        code = main(list(arguments))
+        args = list(arguments)
+        if "--show-config" not in args:
+            args.insert(0, "--direct")
+        code = main(args)
     return code, stdout.getvalue(), stderr.getvalue()
 
 
@@ -276,8 +279,8 @@ class RepositoryTests(unittest.TestCase):
 class Stage2CliTests(unittest.TestCase):
     """Вывод второго этапа и сохранение доступности первого этапа."""
 
-    def test_default_command_prints_direct_dependencies(self):
-        """По умолчанию вывести зависимости вместо настроек TOML."""
+    def test_direct_command_prints_direct_dependencies(self):
+        """В режиме --direct вывести прямые зависимости пакета."""
         text = "P:zlib\nV:1.3.2-r0\nD:so:libc.musl-x86_64.so.1"
         with patch("src.repository.urlopen",
                    return_value=BytesIO(make_archive(text))):
@@ -324,7 +327,7 @@ class Stage2CliTests(unittest.TestCase):
     def test_offline_example_in_separate_process(self):
         """Проверить точку входа второго этапа без доступа к сети."""
         result = subprocess.run(
-            [sys.executable, "-m", "src.main", "--config",
+            [sys.executable, "-m", "src.main", "--direct", "--config",
              "examples/test_config.toml"],
             cwd=PROJECT_ROOT, capture_output=True, text=True, check=False,
         )

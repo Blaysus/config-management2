@@ -48,6 +48,7 @@ def download_index(repository: str) -> bytes:
         with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             return _read_limited(response, MAX_DOWNLOAD_BYTES)
     except HTTPError as error:
+        error.close()
         raise RepositoryError(
             f"Не удалось скачать индекс: HTTP {error.code} ({url})"
         ) from error
@@ -111,11 +112,16 @@ def read_test_index(repository: str, base_dir: Path) -> str:
         ) from error
 
 
-def get_package(config: Config, base_dir: Path) -> Package:
-    """Получить прямые зависимости ровно той версии, которая указана в TOML."""
+def load_packages(config: Config, base_dir: Path) -> dict:
+    """Загрузить и разобрать индекс один раз для последующего обхода."""
     if config.test_mode:
         text = read_test_index(config.repository, base_dir)
     else:
         text = extract_index(download_index(config.repository))
-    packages = parse_index(text)
+    return parse_index(text)
+
+
+def get_package(config: Config, base_dir: Path) -> Package:
+    """Получить прямые зависимости ровно той версии, которая указана в TOML."""
+    packages = load_packages(config, base_dir)
     return find_package(packages, config.package_name, config.package_version)
