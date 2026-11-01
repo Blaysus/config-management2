@@ -1,4 +1,14 @@
-A: B C
-B: D
-C: D
-D:
+P:A
+V:1.0-r0
+D:B C
+
+P:B
+V:1.0-r0
+D:D
+
+P:C
+V:1.0-r0
+D:D
+
+P:D
+V:1.0-r0
