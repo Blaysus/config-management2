@@ -1,4 +1,4 @@
-"""CLI варианта 22: настройки, прямые зависимости и рекурсивный DFS."""
+"""CLI варианта 22: настройки, прямые и обратные зависимости APK."""
 
 import argparse
 from dataclasses import fields
@@ -17,7 +17,7 @@ ERROR_EXIT_CODE = 2
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Создать выбор TOML и режимы демонстрации первых двух этапов."""
+    """Создать выбор TOML и режимы четырех этапов работы."""
     parser = argparse.ArgumentParser(
         description="Вариант 22: граф зависимостей APK, рекурсивный DFS."
     )
@@ -32,6 +32,10 @@ def create_parser() -> argparse.ArgumentParser:
     modes.add_argument(
         "--direct", action="store_true",
         help="вывести только прямые зависимости (этап 2)",
+    )
+    modes.add_argument(
+        "--reverse", action="store_true",
+        help="вывести обратные зависимости (этап 4)",
     )
     modes.add_argument(
         "--show-config",
@@ -70,8 +74,13 @@ def main(argv: list[str] | None = None) -> int:
             package = get_package(config, args.config.resolve().parent)
             print_dependencies(package)
         else:
-            graph = analyze_graph(config, args.config.resolve().parent)
-            print_graph(graph, config.max_depth)
+            graph = analyze_graph(
+                config, args.config.resolve().parent, reverse=args.reverse
+            )
+            if args.reverse:
+                print_reverse(graph, config.max_depth)
+            else:
+                print_graph(graph, config.max_depth)
     except (ConfigError, RepositoryError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return ERROR_EXIT_CODE
@@ -86,6 +95,18 @@ def print_graph(graph: DependencyGraph, max_depth: int) -> None:
         if graph.depths[node] >= max_depth:
             ending = "[предел глубины]"
         print(f"{node} -> {', '.join(children) if children else ending}")
+    for cycle in graph.cycles:
+        print("Цикл: " + " -> ".join(cycle))
+
+
+def print_reverse(graph: DependencyGraph, max_depth: int) -> None:
+    """Вывести зависимые пакеты и их расстояние до исходного пакета."""
+    print(f"Обратные зависимости {graph.root} (глубина {max_depth}):")
+    dependents = [node for node in graph.edges if node != graph.root]
+    if not dependents:
+        print("Обратных зависимостей в пределах заданной глубины нет.")
+    for node in dependents:
+        print(f"{node} (глубина {graph.depths[node]})")
     for cycle in graph.cycles:
         print("Цикл: " + " -> ".join(cycle))
 

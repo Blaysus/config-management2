@@ -1,0 +1,5 @@
+package_name = "D"
+repository = "../graphs/diamond.txt"
+test_mode = true
+package_version = "1.0-r0"
+max_depth = 0

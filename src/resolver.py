@@ -118,15 +118,19 @@ class PackageResolver:
     def resolve(self, text: str) -> Package:
         """Выбрать подходящую версию; неоднозначные имена не угадывать."""
         requirement = parse_requirement(text)
-        candidates = [
-            item for item in self.providers.get(requirement.name, ())
-            if _matches(item, requirement)
-        ]
+        candidates = self.matching_providers(requirement)
         direct = [p for p in candidates if p.package.name == requirement.name]
         candidates = direct or candidates
         if not candidates:
             raise RepositoryError(f"Не найдена зависимость: {text}")
         return _choose_provider(candidates, text)
+
+    def matching_providers(self, requirement: Requirement) -> list[Provider]:
+        """Вернуть всех поставщиков, удовлетворяющих имени и ограничению."""
+        return [
+            item for item in self.providers.get(requirement.name, ())
+            if _matches(item, requirement)
+        ]
 
     def neighbors(self, key: str) -> tuple[str, ...]:
         """Получить реальные узлы всех прямых положительных зависимостей."""

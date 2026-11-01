@@ -1,0 +1,5 @@
+package_name = "F"
+repository = "../graphs/shorter_path.txt"
+test_mode = true
+package_version = "1.0-r0"
+max_depth = 3
