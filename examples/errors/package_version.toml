@@ -1,0 +1,5 @@
+package_name = "zlib"
+repository = "https://example.org/alpine/main"
+test_mode = false
+package_version = ""
+max_depth = 3

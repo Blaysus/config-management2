@@ -1,0 +1,37 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.idea/
+.vscode/
+.DS_Store
+
+# Архивы и скомпилированные файлы
+*.zip
+*.tar
+*.tar.*
+*.tgz
+*.gz
+*.7z
+*.rar
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# Дополнительные результаты инструментов
+.mypy_cache/
+.ruff_cache/
+output/
+tmp/
+coverage.xml
