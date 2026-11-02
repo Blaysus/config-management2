@@ -1,9 +1,8 @@
 # Практическая работа № 2, вариант 22
 
-Анализ зависимостей пакетов Alpine Linux. Выполнены этапы 1–4:
-настройки TOML, прямые зависимости, рекурсивный DFS и обратный поиск.
-Используется только стандартная библиотека Python 3.11+.
-Сборка и установка дополнительных пакетов не нужны.
+Программа строит граф зависимостей пакетов Alpine Linux и печатает PlantUML.
+Выполнены этапы 1–5. Нужен Python 3.11+, сборка и установка пакетов не нужны.
+HTTP, TOML и архивы обрабатываются стандартной библиотекой Python.
 
 ## Запуск
 
@@ -12,128 +11,108 @@
 ```sh
 python3 -m src.main
 python3 -m src.main --config examples/curl.toml
-python3 -m src.main --config examples/stage3/diamond.toml
-python3 -m src.main --config examples/stage3/cycle.toml
+python3 -m src.main --config examples/musl.toml
 ```
 
-По умолчанию строится граф. Обратные зависимости выводятся с `--reverse`:
-
-```sh
-python3 -m src.main --reverse --config examples/stage4/diamond.toml
-python3 -m src.main --reverse --config examples/stage4/cycle.toml
-```
-
-Для проверки первых двух этапов:
+По умолчанию stdout содержит только готовую диаграмму `@startuml ... @enduml`.
+Ее можно сохранить в файл перенаправлением вывода. Режимы предыдущих этапов:
 
 ```sh
 python3 -m src.main --show-config
-python3 -m src.main --direct --config examples/test_config.toml
+python3 -m src.main --direct
+python3 -m src.main --graph --config examples/stage3/diamond.toml
+python3 -m src.main --reverse --config examples/stage4/diamond.toml
 ```
 
-Также можно запускать `./run.sh` с теми же аргументами.
-Ошибки выводятся в stderr, код завершения — 2; успешный запуск — 0.
+`./run.sh` принимает те же аргументы. При ошибке сообщение идет в stderr,
+код завершения — 2, при успехе — 0. Незавершенная диаграмма не печатается.
 
-## Настройки
+## Настройки TOML
 
-Все пять параметров обязательны и задаются в TOML без секций.
+Все пять ключей обязательны, секции и лишние ключи не допускаются.
 
-| Параметр | Значение |
+| Ключ | Назначение |
 | --- | --- |
-| `package_name` | Имя исходного пакета. В тестовом графе — заглавные латинские буквы. |
-| `repository` | URL каталога архитектуры Alpine или APKINDEX.tar.gz; в тестовом режиме — путь к файлу. |
-| `test_mode` | `true` для локального файла, `false` для HTTP(S). |
-| `package_version` | Точная версия исходного APK, например `1.3.2-r0`. |
-| `max_depth` | Целая глубина не меньше 0. Корень находится на глубине 0. |
+| `package_name` | Имя пакета; в тестовом графе — заглавные латинские буквы. |
+| `repository` | HTTP(S)-адрес репозитория или путь к локальному файлу. |
+| `test_mode` | `true` для файла, `false` для HTTP(S). |
+| `package_version` | Точная версия APK, включая ревизию `-rN`. |
+| `max_depth` | Целое число не меньше 0; глубина корня — 0. |
 
-Пример настроек реального репозитория находится в `examples/config.toml`.
-Индекс скачивается один раз. Зависимости разрешаются по именам и полю `p`,
-в том числе `so:` и `cmd:`. Учитываются ограничения версий и приоритет `k`.
-При прямом обходе отсутствие зависимости или неоднозначный выбор поставщика
-вызывают ошибку. Это анализ графа одного репозитория,
-без установки пакетов и подбора совместимого набора для всей системы.
-Версии на сервере могут меняться; отсутствующая версия не подменяется другой.
+Примеры настроек находятся в `examples/`. Тестовый граф имеет вид `A: B C`;
+каждый узел описывается отдельно, лист записывается как `D:`.
+Путь отсчитывается от каталога TOML, версия в таком графе не используется.
+Для `--direct` локальный файл имеет формат APKINDEX.
 
-## Тестовые графы
+DFS учитывает глубину, общие узлы и циклы. На границе зависимости не читаются.
+Обратный поиск идет по всему репозиторию, исходный пакет не входит в список.
+Для APK учитываются версии, предоставления p и приоритет k; это анализ одного
+репозитория, без установки и подбора совместимого набора для всей системы.
+Отсутствующая версия не подменяется другой. Подпись индекса не проверяется.
 
-В режиме третьего этапа файл описывает граф без версий:
+## Примеры визуализации
 
-```text
-A: B C
-B: D
-C: D
-D:
+Готовые тексты для zlib, curl и musl находятся в `examples/stage5/`.
+[Сравнение с apk dot и объяснение различий](docs/stage5.md).
+Зеленым отмечен корень, желтым — предел глубины, красными стрелками — циклы.
+Для PNG дополнительно нужны Java и PlantUML:
+
+```sh
+mkdir -p output
+curl -fL https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar \
+  -o output/plantuml.jar
+java -jar output/plantuml.jar -charset UTF-8 -tpng \
+  -o ../../output/stage5 examples/stage5/*.puml
 ```
 
-Каждый узел нужно описать отдельно, включая листья. Пустые строки и
-строки с `#` пропускаются. Путь к файлу отсчитывается от каталога TOML.
-`package_version` в таком графе не используется, но проверяется как настройка.
-Для режима `--direct` локальный файл по-прежнему имеет формат APKINDEX.
-
-При глубине 0 выводится только корень. Узлы на границе отмечаются
-`[предел глубины]`, их зависимости не читаются. Циклические ребра сохраняются,
-но повторный обход текущего пути останавливается. Для общего узла,
-найденного позднее по более короткому пути, обход продолжается с новой глубиной.
-Слишком длинная цепочка, исчерпавшая рекурсию Python, дает понятную ошибку.
-
-В `examples/stage3/` есть конфигурации для общих зависимостей (`diamond`),
-цикла (`cycle`), петли (`self_cycle`), одиночного узла (`isolated`),
-короткого повторного пути (`shorter_path`) и глубин 0, 1, 2 (`depth0`–`depth2`).
-Обратный поиск рассматривает весь репозиторий. Например, для D в графе выше
-он вернет B и C на глубине 1, A на глубине 2. Исходный пакет в список
-не включается, циклы отмечаются отдельно. При глубине 0 список пустой.
-Для APK учитываются все поставщики, подходящие по имени и версии требования;
-конфликты `!имя` не считаются зависимостями. В `examples/stage4/` есть примеры
-цикла, петли, общего зависимого узла, пустого результата и разных глубин.
+Изображения и jar сохраняются в `output/`, который исключен из Git.
 
 ## Тесты
 
 ```sh
 python3 -m unittest discover -s tests -v
-python3 -m unittest discover -s tests -p 'test_stage4.py' -v
+python3 -m unittest discover -s tests -p 'test_stage5.py' -v
 ```
 
-Тесты разделены по этапам: `test_stage1.py`–`test_stage4.py`.
-Внешняя сеть им не нужна. Проверяются ошибки ввода и загрузки, версии APK,
-глубина, циклы и общие узлы. DFS дополнительно сверяется с независимым BFS
-на всех 512 графах из трех узлов при четырех пределах глубины.
+Тесты разделены по этапам и работают без внешней сети, Java и Docker.
 
-## Код
+## Функции
 
-В `src/` находятся исходники, в `tests/` — тесты, в `examples/` — настройки
-и текстовые репозитории. Назначение функций:
+Исходники находятся в `src/`, тесты — в `tests/`. Назначение функций:
 
 - `config.py`: `load_config` читает TOML, `parse_config` создает `Config`.
-  `_validate_fields` проверяет ключи; `_require_text` — непустые строки.
-  `_validate_package_name`, `_validate_package_version`, `_validate_max_depth`
-  проверяют имя, версию и глубину. `_validate_repository` выбирает проверку
-  адреса (`_validate_url`) или файла (`_validate_test_file`).
-- `apk_index.py`: `_parse_fields` читает поля, `_make_package` создает `Package`,
-  `_provider_priority` проверяет поле `k`. `parse_index` разбирает весь индекс,
+  `_validate_fields` проверяет ключи, `_require_text` — непустые строки;
+  `_validate_package_name`, `_validate_package_version`, `_validate_max_depth` —
+  имя, версию и глубину. `_validate_repository` выбирает `_validate_url`
+  или `_validate_test_file` для проверки адреса или файла.
+- `apk_index.py`: `_parse_fields` читает поля, `_provider_priority` проверяет k,
+  `_make_package` создает пакет; `parse_index` разбирает записи,
   `find_package` ищет точную версию.
-- `repository.py`: `build_index_url` формирует адрес, `download_index` скачивает
-  индекс, `_read_limited` ограничивает размер, `_decode_index` проверяет UTF-8.
-  `_read_archive_member` читает APKINDEX из tar, `extract_index` обрабатывает gzip/tar.
-  `read_test_index` читает локальный индекс, `load_packages` загружает все записи,
-  `get_package` возвращает один пакет. Подпись архива не проверяется.
-- `apk_versions.py`: `_number` читает числовую часть, `_numeric_tokens` учитывает
-  ведущие нули, `_main_tokens` разбирает основную часть версии. `version_tokens`
-  добавляет суффиксы и ревизию; `_different_types` сравнивает типы частей,
-  `compare_versions` сравнивает версии целиком.
+- `repository.py`: `build_index_url` строит адрес, `download_index` скачивает
+  индекс, `_read_limited` ограничивает объем, `_decode_index` проверяет UTF-8.
+  `_read_archive_member` читает APKINDEX, `extract_index` раскрывает gzip/tar,
+  `read_test_index` читает файл, `load_packages` получает все записи,
+  `get_package` возвращает пакет.
+- `apk_versions.py`: `_number`, `_numeric_tokens`, `_main_tokens` разбирают числа
+  и основную часть версии; `version_tokens` добавляет суффиксы и ревизию,
+  `_different_types` сравнивает типы частей, `compare_versions` — версии целиком.
 - `resolver.py`: `parse_requirement` разбирает требование, `package_key` подписывает
-  узел, `_matches` проверяет ограничение. `_compare_providers` и `_choose_provider`
-  выбирают поставщика. `PackageResolver.__init__` и `_add_provides` строят индекс
-  имен, `matching_providers` отбирает подходящих поставщиков, `resolve` находит
-  пакет, `neighbors` возвращает его зависимости.
-- `reverse.py`: `reverse_edges` разворачивает тестовый граф, `apk_reverse_edges`
-  строит обратные связи пакетов, `_unique_edges` убирает повторные ребра.
+  узел, `_matches` проверяет версию. `_compare_providers`, `_choose_provider`
+  выбирают поставщика; `PackageResolver.__init__`, `_add_provides` строят индекс,
+  `matching_providers` отбирает кандидатов, `resolve` выбирает пакет,
+  `neighbors` возвращает зависимости.
 - `graph_file.py`: `_parse_line` читает строку, `_validate_targets` проверяет ссылки,
-  `parse_test_graph` разбирает граф, `load_test_graph` читает его из файла.
-- `graph.py`: `build_graph` запускает обход, `_visit` выполняет рекурсивный DFS,
-  `_cycle_visit` находит циклы, `_record_cycle` сохраняет их.
-  Результат хранится в `DependencyGraph`.
-- `analysis.py`: `analyze_graph` выбирает источник, направление и строит граф.
-- `main.py`: `create_parser` задает аргументы, `main` запускает выбранный режим,
+  `parse_test_graph` разбирает граф, `load_test_graph` читает файл.
+- `graph.py`: `build_graph` запускает `_visit` — рекурсивный DFS;
+  `_cycle_visit` находит циклы, `_record_cycle` сохраняет их в `DependencyGraph`.
+- `reverse.py`: `reverse_edges` разворачивает граф, `apk_reverse_edges` строит
+  обратные связи APK, `_unique_edges` убирает повторы.
+- `analysis.py`: `analyze_graph` выбирает источник и направление обхода.
+- `plantuml.py`: `_validate_graph`, `_validate_depths` проверяют данные,
+  `_node_line` экранирует подпись и задает цвет, `_edge_lines` формирует стрелки,
+  `to_plantuml` собирает диаграмму.
+- `main.py`: `create_parser` задает аргументы, `main` запускает режим;
   `print_config`, `print_dependencies`, `print_graph`, `print_reverse`
-  выводят результаты этапов.
+  выводят результаты первых четырех этапов.
 
-Описание каждого теста и вспомогательных функций находится в их docstring.
+Описание каждого теста и его вспомогательных функций находится в docstring.

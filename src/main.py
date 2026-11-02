@@ -1,4 +1,4 @@
-"""CLI варианта 22: настройки, прямые и обратные зависимости APK."""
+"""CLI варианта 22: PlantUML, настройки и анализ зависимостей APK."""
 
 import argparse
 from dataclasses import fields
@@ -9,6 +9,7 @@ from .apk_index import Package, RepositoryError
 from .analysis import analyze_graph
 from .config import Config, ConfigError, load_config
 from .graph import DependencyGraph
+from .plantuml import to_plantuml
 from .repository import get_package
 
 
@@ -17,7 +18,7 @@ ERROR_EXIT_CODE = 2
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Создать выбор TOML и режимы четырех этапов работы."""
+    """Создать выбор TOML и режимы пяти этапов работы."""
     parser = argparse.ArgumentParser(
         description="Вариант 22: граф зависимостей APK, рекурсивный DFS."
     )
@@ -29,6 +30,10 @@ def create_parser() -> argparse.ArgumentParser:
         help="путь к TOML-файлу (по умолчанию examples/config.toml)",
     )
     modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--graph", action="store_true",
+        help="вывести граф списками смежности (этап 3)",
+    )
     modes.add_argument(
         "--direct", action="store_true",
         help="вывести только прямые зависимости (этап 2)",
@@ -79,8 +84,10 @@ def main(argv: list[str] | None = None) -> int:
             )
             if args.reverse:
                 print_reverse(graph, config.max_depth)
-            else:
+            elif args.graph:
                 print_graph(graph, config.max_depth)
+            else:
+                print(to_plantuml(graph, config.max_depth), end="")
     except (ConfigError, RepositoryError) as error:
         print(f"Ошибка: {error}", file=sys.stderr)
         return ERROR_EXIT_CODE

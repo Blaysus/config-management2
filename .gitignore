@@ -28,6 +28,8 @@ dist/
 *.dll
 *.exe
 *.out
+*.jar
+*.class
 
 # Дополнительные результаты инструментов
 .mypy_cache/

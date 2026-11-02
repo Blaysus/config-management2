@@ -1,0 +1,14 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+title Граф зависимостей
+caption Максимальная глубина: 3
+rectangle "musl@1.2.5-r4" as n0 #D5E8D4
+legend right
+  Зелёный: исходный пакет
+  Жёлтый: предел глубины
+  Красные стрелки: цикл
+endlegend
+@enduml

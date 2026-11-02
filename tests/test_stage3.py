@@ -82,7 +82,7 @@ def run_graph_cli(*arguments) -> tuple[int, str, str]:
     """Вызвать CLI третьего этапа и перехватить результат."""
     output, errors = StringIO(), StringIO()
     with redirect_stdout(output), redirect_stderr(errors):
-        code = main(list(arguments))
+        code = main(["--graph", *arguments])
     return code, output.getvalue(), errors.getvalue()
 
 
@@ -401,7 +401,7 @@ class Stage3CliTests(unittest.TestCase):
         for name in ("diamond", "cycle", "isolated", "shorter_path"):
             with self.subTest(name=name):
                 result = subprocess.run(
-                    [sys.executable, "-m", "src.main", "--config",
+                    [sys.executable, "-m", "src.main", "--graph", "--config",
                      f"examples/stage3/{name}.toml"],
                     cwd=PROJECT_ROOT, capture_output=True, text=True,
                     check=False, timeout=10,
